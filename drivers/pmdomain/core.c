@@ -1323,13 +1323,13 @@ __setup("pd_ignore_unused", pd_ignore_unused_setup);
 /**
  * genpd_power_off_unused - Power off all PM domains with no devices in use.
  */
-static int __init genpd_power_off_unused(void)
+static void genpd_init_complete_work_function(struct work_struct *work)
 {
 	struct generic_pm_domain *genpd;
 
 	if (pd_ignore_unused) {
 		pr_warn("genpd: Not disabling unused power domains\n");
-		return 0;
+		return;
 	}
 
 	pr_info("genpd: Disabling unused power domains\n");
@@ -1339,7 +1339,15 @@ static int __init genpd_power_off_unused(void)
 		genpd_queue_power_off_work(genpd);
 
 	mutex_unlock(&gpd_list_lock);
+}
 
+static DECLARE_DELAYED_WORK(genpd_init_complete_work,
+			    genpd_init_complete_work_function);
+
+static int __init genpd_power_off_unused(void)
+{
+	schedule_delayed_work(&genpd_init_complete_work,
+			      msecs_to_jiffies(30000));
 	return 0;
 }
 late_initcall_sync(genpd_power_off_unused);
