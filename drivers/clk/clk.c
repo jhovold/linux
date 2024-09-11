@@ -1448,7 +1448,7 @@ static void clk_core_disable_unprepare(struct clk_core *core)
 	clk_core_unprepare_lock(core);
 }
 
-static void __init clk_unprepare_unused_subtree(struct clk_core *core)
+static void clk_unprepare_unused_subtree(struct clk_core *core)
 {
 	struct clk_core *child;
 
@@ -1473,7 +1473,7 @@ static void __init clk_unprepare_unused_subtree(struct clk_core *core)
 	}
 }
 
-static void __init clk_disable_unused_subtree(struct clk_core *core)
+static void clk_disable_unused_subtree(struct clk_core *core)
 {
 	struct clk_core *child;
 	unsigned long flags;
@@ -1514,7 +1514,7 @@ unlock_out:
 		clk_core_disable_unprepare(core->parent);
 }
 
-static bool clk_ignore_unused __initdata;
+static bool clk_ignore_unused;
 static int __init clk_ignore_unused_setup(char *__unused)
 {
 	clk_ignore_unused = true;
@@ -1522,21 +1522,21 @@ static int __init clk_ignore_unused_setup(char *__unused)
 }
 __setup("clk_ignore_unused", clk_ignore_unused_setup);
 
-static int __init clk_disable_unused(void)
+static void clk_init_complete_work_function(struct work_struct *work)
 {
 	struct clk_core *core;
 	int ret;
 
 	if (clk_ignore_unused) {
 		pr_warn("clk: Not disabling unused clocks\n");
-		return 0;
+		return;
 	}
 
 	pr_info("clk: Disabling unused clocks\n");
 
 	ret = clk_pm_runtime_get_all();
 	if (ret)
-		return ret;
+		return;
 	/*
 	 * Grab the prepare lock to keep the clk topology stable while iterating
 	 * over clks.
@@ -1558,6 +1558,15 @@ static int __init clk_disable_unused(void)
 	clk_prepare_unlock();
 
 	clk_pm_runtime_put_all();
+}
+
+static DECLARE_DELAYED_WORK(clk_init_complete_work,
+			    clk_init_complete_work_function);
+
+static int __init clk_disable_unused(void)
+{
+	schedule_delayed_work(&clk_init_complete_work,
+			      msecs_to_jiffies(30000));
 
 	return 0;
 }
