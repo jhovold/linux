@@ -1473,7 +1473,7 @@
 	firmware-name = "qcom/x1e80100/adsp.mbn",
 			"qcom/x1e80100/adsp_dtb.mbn";
 
-	status = "okay";
+//	status = "okay";
 };
 
 &remoteproc_cdsp {
